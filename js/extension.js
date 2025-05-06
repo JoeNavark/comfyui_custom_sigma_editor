@@ -61,16 +61,16 @@ class CustomGraphNode {
         // Graph area positions will be calculated dynamically
 
         // --- Widget for curve data ---
-        if (!this.widgets) this.widgets = [];
-        if (!this.widgets.find(w => w.name === "curve_data")) {
-            this.addWidget(
-                "string",
-                "curve_data",
-                "",
-                null,
-                { multiline: true, disabled: true }
-            );
-        }
+        // if (!this.widgets) this.widgets = [];
+        // if (!this.widgets.find(w => w.name === "curve_data")) {
+        //     this.addWidget(
+        //         "string",
+        //         "curve_data",
+        //         "",
+        //         null,
+        //         { multiline: true, disabled: true }
+        //     );
+        // }
 
         // --- Control points and state ---
         if (!this.points || !Array.isArray(this.points)) {
