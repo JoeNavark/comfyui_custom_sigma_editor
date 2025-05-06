@@ -21,3 +21,4 @@
 4. Connect the node’s outputs to schedule or denoising nodes as needed.
 
 MIT License. Visit the [Open Source Initiative MIT page](https://opensource.org/licenses/MIT).
+
