@@ -58,19 +58,19 @@ class CustomGraphNode {
         this.graph_area_height_frac = 0.7;
         this.graph_side_margin = 25;
         this.graph_bottom_margin = 20;
-        // Graph area positions will be calculated dynamically
 
         // --- Widget for curve data ---
-        // if (!this.widgets) this.widgets = [];
-        // if (!this.widgets.find(w => w.name === "curve_data")) {
-        //     this.addWidget(
-        //         "string",
-        //         "curve_data",
-        //         "",
-        //         null,
-        //         { multiline: true, disabled: true }
-        //     );
-        // }
+        // Always add the visible, enabled curve_data widget if missing
+        if (!this.widgets) this.widgets = [];
+        if (!this.widgets.find(w => w.name === "curve_data")) {
+            this.addWidget(
+                "string",
+                "curve_data",
+                "",
+                null,
+                { multiline: false, disabled: false }
+            );
+        }
 
         // --- Control points and state ---
         if (!this.points || !Array.isArray(this.points)) {
@@ -244,7 +244,12 @@ class CustomGraphNode {
                 control_points: this.points,
                 samples: this.smoothedPoints
             });
-            if (widget.value !== newValue) widget.value = newValue;
+            if (widget.value !== newValue) {
+                widget.value = newValue;
+                // Notify ComfyUI that this input has changed
+                if (this.setDirtyCanvas) this.setDirtyCanvas(true, true);
+                if (app && app.graph) app.graph.change();
+            }
         }
     }
 
