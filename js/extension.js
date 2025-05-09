@@ -46,6 +46,191 @@ function centripetalCatmullRomSpline(points, numSamples = 100) {
     return out;
 }
 
+// ================ ADD THESE CURVE GENERATOR FUNCTIONS HERE ================
+function generateSimpleCurve(numPoints = 10) {
+    // Simple linear curve from 1 to 0 (current default)
+    return Array.from({length: numPoints}, (_, i) => {
+        const t = i / (numPoints - 1);
+        return {
+            x: t,
+            y: 1.0 - t  // High noise (1.0) to low noise (0.0)
+        };
+    });
+}
+
+function generateKarrasCurve(numPoints = 10) {
+    const sigma_min = 0.1;
+    const sigma_max = 10.0;
+    const rho = 7.0;
+    
+    return Array.from({length: numPoints}, (_, i) => {
+        // t should go from 1.0 to 0.0 for high->low noise
+        const t = 1.0 - (i / (numPoints - 1));
+        
+        // Karras formula: sigma(t) = sigma_max * (sigma_min/sigma_max)^(t * rho)
+        const sigma = sigma_max * Math.pow(sigma_min/sigma_max, t * rho);
+        
+        // At t=1 (beginning), sigma ≈ sigma_min (lowest)
+        // At t=0 (end), sigma = sigma_max (highest)
+        // We need to invert this to get the correct direction
+        const normalized = 1.0 - Math.min(1.0, Math.max(0.0, 
+            (sigma - sigma_min) / (sigma_max - sigma_min)));
+        
+        return {
+            x: i / (numPoints - 1),
+            y: normalized
+        };
+    });
+}
+
+function generateExponentialCurve(numPoints = 10) {
+    const sigma_min = 0.1;
+    const sigma_max = 10.0;
+    
+    return Array.from({length: numPoints}, (_, i) => {
+        // t should go from 1.0 to 0.0 for high->low noise
+        const t = 1.0 - (i / (numPoints - 1));
+        
+        // Exponential formula: sigma = sigma_min^(1-t) * sigma_max^t
+        const sigma = Math.pow(sigma_min, 1-t) * Math.pow(sigma_max, t);
+        
+        // At t=1 (beginning), sigma = sigma_max (highest)
+        // At t=0 (end), sigma = sigma_min (lowest)
+        const normalized = Math.min(1.0, Math.max(0.0, 
+            (sigma - sigma_min) / (sigma_max - sigma_min)));
+        
+        return {
+            x: i / (numPoints - 1),
+            y: normalized
+        };
+    });
+}
+
+function generateVPCurve(numPoints = 10) {
+    const beta_d = 19.9;
+    const beta_min = 0.1;
+    const beta_max = 20.0;
+    
+    return Array.from({length: numPoints}, (_, i) => {
+        // t should go from 1.0 to 0.0 for high->low noise
+        const t = 1.0 - (i / (numPoints - 1));
+        
+        // VP formula
+        const beta = beta_min + t * (beta_max - beta_min);
+        
+        // Convert beta to alpha, then to sigma
+        const alpha = Math.exp(-beta);
+        const alpha_cumprod = Math.exp(-(beta + 0.5 * t * t * beta_d));
+        const sigma = Math.sqrt((1 - alpha_cumprod) / alpha_cumprod);
+        
+        // Normalize to 0-1 range
+        // Higher sigma means higher noise
+        const max_sigma = 10.0; // Approximate highest sigma value
+        const normalized = Math.min(1.0, sigma / max_sigma);
+        
+        return {
+            x: i / (numPoints - 1),
+            y: normalized
+        };
+    });
+}
+
+function generateVECurve(numPoints = 10) {
+    const sigma_min = 0.02;
+    const sigma_max = 100.0;
+    
+    return Array.from({length: numPoints}, (_, i) => {
+        // Standard t from 0 to 1 for position on x-axis
+        const x_pos = i / (numPoints - 1);
+        
+        // For VE formula, we need t from 0 to 1 going right to left
+        // This means t=0 at x=0, and t=1 at x=1
+        const t = x_pos;  // Not reversed here!
+        
+        // Standard VE formula
+        const sigma = Math.pow(sigma_min, t) * Math.pow(sigma_max, 1-t);
+        
+        // Now let's normalize so that:
+        // - At x=0 (t=0): sigma ≈ sigma_max → normalized should be 1.0
+        // - At x=1 (t=1): sigma ≈ sigma_min → normalized should be 0.0
+        const normalized = 1.0 - Math.min(1.0, Math.max(0.0, 
+            (sigma - sigma_min) / (sigma_max - sigma_min)));
+        
+        return {
+            x: x_pos,
+            y: normalized
+        };
+    });
+}
+
+function generateLinearCurve(numPoints = 10) {
+    const sigma_min = 0.1;
+    const sigma_max = 10.0;
+    
+    return Array.from({length: numPoints}, (_, i) => {
+        // t should go from 1.0 to 0.0 for high->low noise
+        const t = 1.0 - (i / (numPoints - 1));
+        
+        // Linear interpolation
+        const sigma = sigma_min + t * (sigma_max - sigma_min);
+        
+        // Normalize
+        const normalized = Math.min(1.0, sigma / sigma_max);
+        
+        return {
+            x: i / (numPoints - 1),
+            y: normalized
+        };
+    });
+}
+
+function generatePolyexponentialCurve(numPoints = 10) {
+    const sigma_min = 0.1;
+    const sigma_max = 10.0;
+    const rho = 3.0;  // Changed from 1.0 to 3.0 to make it distinct
+    
+    return Array.from({length: numPoints}, (_, i) => {
+        // t should go from 1.0 to 0.0 for high->low noise
+        const t = 1.0 - (i / (numPoints - 1));
+        
+        // Polyexponential formula with rho != 1 for non-linear curve
+        const sigma = sigma_min + (sigma_max - sigma_min) * (t ** (1.0 / rho));
+        
+        // Normalize
+        const normalized = Math.min(1.0, sigma / sigma_max);
+        
+        return {
+            x: i / (numPoints - 1),
+            y: normalized
+        };
+    });
+}
+
+function generateDPMSolverFastCurve(numPoints = 10) {
+    return Array.from({length: numPoints}, (_, i) => {
+        const t = i / (numPoints - 1);
+        
+        // Directly define the curve shape
+        // For DPM-Solver, we want a fast then slow noise reduction
+        let noise_level;
+        
+        // Should start high (1.0) and end low (0.0)
+        if (t < 0.5) {
+            // Faster reduction in first half
+            noise_level = 1.0 - 0.75 * (2 * t);
+        } else {
+            // Slower reduction in second half
+            noise_level = 0.25 * (2.0 - 2 * t);
+        }
+        
+        return {
+            x: t,
+            y: noise_level
+        };
+    });
+}
+// ================ END OF CURVE GENERATOR FUNCTIONS ================
+
 // --- Node Implementation ---
 class CustomGraphNode {
     // No constructor! All node setup is done in onNodeCreated
@@ -71,6 +256,59 @@ class CustomGraphNode {
             { multiline: false, disabled: false }
         );
     }
+
+    // Add preset selector widget
+	if (!this.widgets.find(w => w.name === "preset_selector")) {
+		this.addWidget("combo", "preset_selector", "Simple", (value) => {
+			if (value === "Custom") return;
+			
+			// Apply the selected preset
+			switch(value) {
+				case "Simple":
+					this.points = generateSimpleCurve(10);
+					break;
+				case "Karras":
+					this.points = generateKarrasCurve(10);
+					break;
+				case "Exponential":
+					this.points = generateExponentialCurve(10);
+					break;
+				case "VP":
+					this.points = generateVPCurve(10);
+					break;
+				case "VE":
+					this.points = generateVECurve(10);
+					break;
+				case "Linear":
+					this.points = generateLinearCurve(10);
+					break;
+				case "Polyexponential":
+					this.points = generatePolyexponentialCurve(10);
+					break;
+				case "DPM-Solver-Fast":
+					this.points = generateDPMSolverFastCurve(10);
+					break;
+				default:
+					return;
+			}
+			
+			// Store the last selected preset for potential reset
+			this.lastSelectedPreset = value;
+			
+			// Update the curve and curve_data widget
+			this._ensureValidPoints();
+			this.updateCurve();
+			
+			// Keep the preset name in the dropdown (don't change to "Custom")
+			
+			this.setDirtyCanvas(true, true);
+			app.graph.change();
+		}, {
+			values: ["Simple", "Karras", "Exponential", "VP", "VE", "Linear", 
+					"Polyexponential", "DPM-Solver-Fast", "Custom"]
+		});
+	}
+    // ================ END OF PRESET SELECTOR CODE ================
 
     // --- NEW: Try to load points from the widget value (JSON) ---
     const widget = this.widgets.find(w => w.name === "curve_data");
@@ -312,53 +550,57 @@ class CustomGraphNode {
         }
     }
 
-    onMouseDown(e, pos) {
-        this.calcGraphArea();
-        // --- Only allow interaction inside the graph area ---
-        if (
-            pos[0] < this.graph_area_left ||
-            pos[0] > this.graph_area_left + this.graph_area_width ||
-            pos[1] < this.graph_area_top ||
-            pos[1] > this.graph_area_top + this.graph_area_height
-        )
-            return false;
-        const graphPos = this.toGraphCoords(pos);
-        const pointIndex = this.points.findIndex(p =>
-            Math.hypot(p.x - graphPos.x, p.y - graphPos.y) < this.hitRadius
-        );
-        if (pointIndex >= 0) {
-            // Delete if Shift+Left click, else drag
-            if (e.button === 0 && e.shiftKey) {
-                if (this.points.length > 2) {
-                    this.points.splice(pointIndex, 1);
-                    this.updateCurve();
-                    app.graph.change();
-                    this.setDirtyCanvas(true, true);
-                }
-                return true;
-            } else if (e.button === 0) {
-                this.dragState = {
-                    index: pointIndex,
-                    offsetX: graphPos.x - this.points[pointIndex].x,
-                    offsetY: graphPos.y - this.points[pointIndex].y
-                };
-                app.graph.change();
-                this.setDirtyCanvas(true, true);
-                return true;
-            }
-        }
-        if (e.button === 0) {
-            let newX = Math.max(0, Math.min(1, graphPos.x));
-            if (this.points.some(p => Math.abs(p.x - newX) < 1e-4)) return false;
-            let newY = Math.max(0, Math.min(1, graphPos.y));
-            this.points.push({ x: newX, y: newY });
-            this.updateCurve();
-            app.graph.change();
-            this.setDirtyCanvas(true, true);
-            return true;
-        }
-        return false;
-    }
+	onMouseDown(e, pos) {
+		this.calcGraphArea();
+		// --- Only allow interaction inside the graph area ---
+		if (
+			pos[0] < this.graph_area_left ||
+			pos[0] > this.graph_area_left + this.graph_area_width ||
+			pos[1] < this.graph_area_top ||
+			pos[1] > this.graph_area_top + this.graph_area_height
+		)
+			return false;
+		const graphPos = this.toGraphCoords(pos);
+		const pointIndex = this.points.findIndex(p =>
+			Math.hypot(p.x - graphPos.x, p.y - graphPos.y) < this.hitRadius
+		);
+		if (pointIndex >= 0) {
+			// Delete if Shift+Left click, else drag
+			if (e.button === 0 && e.shiftKey) {
+				if (this.points.length > 2) {
+					this.points.splice(pointIndex, 1);
+					// Add this line to change preset selector to "Custom" on point deletion
+					this._setPresetToCustom();
+					this.updateCurve();
+					app.graph.change();
+					this.setDirtyCanvas(true, true);
+				}
+				return true;
+			} else if (e.button === 0) {
+				this.dragState = {
+					index: pointIndex,
+					offsetX: graphPos.x - this.points[pointIndex].x,
+					offsetY: graphPos.y - this.points[pointIndex].y
+				};
+				app.graph.change();
+				this.setDirtyCanvas(true, true);
+				return true;
+			}
+		}
+		if (e.button === 0) {
+			let newX = Math.max(0, Math.min(1, graphPos.x));
+			if (this.points.some(p => Math.abs(p.x - newX) < 1e-4)) return false;
+			let newY = Math.max(0, Math.min(1, graphPos.y));
+			this.points.push({ x: newX, y: newY });
+			// Add this line to change preset selector to "Custom" on point addition
+			this._setPresetToCustom();
+			this.updateCurve();
+			app.graph.change();
+			this.setDirtyCanvas(true, true);
+			return true;
+		}
+		return false;
+	}
 
     onMouseMove(e, pos) {
         if (!this.dragState) return false;
@@ -381,11 +623,15 @@ class CustomGraphNode {
             if (i > 0) newX = Math.max(this.points[i - 1].x + 1e-3, newX);
             if (i < this.points.length - 1) newX = Math.min(this.points[i + 1].x - 1e-3, newX);
         }
-        this.points[i] = { x: newX, y: newY };
-        this.updateCurve();
-        this.setDirtyCanvas(true, true);
-        return true;
-    }
+		this.points[i] = { x: newX, y: newY };
+		
+		// Add this line to change preset selector to "Custom"
+		this._setPresetToCustom();
+		
+		this.updateCurve();
+		this.setDirtyCanvas(true, true);
+		return true;
+	}
 
     onMouseUp() {
         if (this.dragState) {
@@ -421,6 +667,18 @@ class CustomGraphNode {
 	onSerialize(info) {
 		// Save the curve state when the workflow is saved
 		info.curve_state = this.points;
+	}
+	
+	_setPresetToCustom() {
+		// Find preset selector widget
+		const presetWidget = this.widgets.find(w => w.name === "preset_selector");
+		if (presetWidget && presetWidget.value !== "Custom") {
+			presetWidget.value = "Custom";
+			// For ComfyUI to register the widget value change
+			if (this.onWidgetChanged) {
+				this.onWidgetChanged(presetWidget.name, presetWidget.value, presetWidget.last_value);
+			}
+		}
 	}
 }
 
