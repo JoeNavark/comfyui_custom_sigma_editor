@@ -51,42 +51,101 @@ class CustomGraphNode {
     // No constructor! All node setup is done in onNodeCreated
 
     onNodeCreated() {
-        // Node size
-        if (!this.size) this.size = [340, 260];
+    // Node size
+    if (!this.size) this.size = [340, 260];
 
-        // --- Graph area config (proportions only) ---
-        this.graph_area_height_frac = 0.7;
-        this.graph_side_margin = 25;
-        this.graph_bottom_margin = 20;
+    // --- Graph area config (proportions only) ---
+    this.graph_area_height_frac = 0.7;
+    this.graph_side_margin = 25;
+    this.graph_bottom_margin = 20;
 
-        // --- Widget for curve data ---
-        // Always add the visible, enabled curve_data widget if missing
-        if (!this.widgets) this.widgets = [];
-        if (!this.widgets.find(w => w.name === "curve_data")) {
-            this.addWidget(
-                "string",
-                "curve_data",
-                "",
-                null,
-                { multiline: false, disabled: false }
-            );
+    // --- Widget for curve data ---
+    // Always add the visible, enabled curve_data widget if missing
+    if (!this.widgets) this.widgets = [];
+    if (!this.widgets.find(w => w.name === "curve_data")) {
+        this.addWidget(
+            "string",
+            "curve_data",
+            "",
+            null,
+            { multiline: false, disabled: false }
+        );
+    }
+
+    // --- NEW: Try to load points from the widget value (JSON) ---
+    const widget = this.widgets.find(w => w.name === "curve_data");
+    let loaded = false;
+    if (widget && widget.value) {
+        try {
+            const data = JSON.parse(widget.value);
+            if (data && Array.isArray(data.control_points) && data.control_points.length >= 2) {
+                this.points = data.control_points.map(pt => ({
+                    x: Number(pt.x),
+                    y: Number(pt.y)
+                }));
+                loaded = true;
+            } else if (data && Array.isArray(data.samples) && data.samples.length >= 2) {
+                // Use endpoints as fallback
+                this.points = [
+                    {x: Number(data.samples[0][0]), y: Number(data.samples[0][1])},
+                    {x: Number(data.samples[data.samples.length-1][0]), y: Number(data.samples[data.samples.length-1][1])}
+                ];
+                loaded = true;
+            }
+        } catch (e) {
+            // ignore parse error, will use default points below
         }
-
-        // --- Control points and state ---
+    }
+    if (!loaded) {
         if (!this.points || !Array.isArray(this.points)) {
             this.points = [
                 { x: 0, y: 1 },
                 { x: 1, y: 0 }
             ];
         }
-        this.dragState = null;
-        this.smoothedPoints = null;
-        this.hitRadius = 0.05;
-
-        this._ensureValidPoints();
-        this.updateCurve();
-        this._updateCurveWidget();
     }
+
+    // --- NEW: React to widget value changes (e.g., when workflow loads) ---
+	if (widget) {
+		widget.callback = (value) => {
+			let loaded = false;
+			if (value) {
+				try {
+					const data = JSON.parse(value);
+					if (data && Array.isArray(data.control_points) && data.control_points.length >= 2) {
+						this.points = data.control_points.map(pt => ({
+							x: Number(pt.x),
+							y: Number(pt.y)
+						}));
+						loaded = true;
+					} else if (data && Array.isArray(data.samples) && data.samples.length >= 2) {
+						this.points = [
+							{x: Number(data.samples[0][0]), y: Number(data.samples[0][1])},
+							{x: Number(data.samples[data.samples.length-1][0]), y: Number(data.samples[data.samples.length-1][1])}
+						];
+						loaded = true;
+					}
+				} catch (e) {}
+			}
+			if (!loaded) {
+				this.points = [
+					{ x: 0, y: 1 },
+					{ x: 1, y: 0 }
+				];
+			}
+			this.updateCurve();
+			this.setDirtyCanvas(true, true);
+		};
+	}
+
+    this.dragState = null;
+    this.smoothedPoints = null;
+    this.hitRadius = 0.05;
+
+    this._ensureValidPoints();
+    this.updateCurve();
+    this._updateCurveWidget();
+	}
 
     // Now calcGraphArea uses current this.size every time it's called
     calcGraphArea() {
@@ -342,6 +401,27 @@ class CustomGraphNode {
     }
 
     onExecuted(data) {}
+	
+	onConfigure(info) {
+    // This is called when the node is loaded from a workflow file
+		if (info.curve_state && Array.isArray(info.curve_state)) {
+			try {
+				this.points = info.curve_state.map(pt => ({
+					x: Number(pt.x),
+					y: Number(pt.y)
+				}));
+				this._ensureValidPoints();
+				this.updateCurve();
+			} catch (e) {
+				console.error("Failed to load curve state:", e);
+			}
+		}
+	}
+
+	onSerialize(info) {
+		// Save the curve state when the workflow is saved
+		info.curve_state = this.points;
+	}
 }
 
 app.registerExtension({
