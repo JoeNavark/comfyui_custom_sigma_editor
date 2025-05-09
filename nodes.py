@@ -16,7 +16,9 @@ class CustomSplineSigma:
                 "steps": ("INT", {"default": 20, "min": 2, "max": 4096}),
                 "start_y": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "end_y": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "curve_data": ("STRING", {"default": "", "forceInput": True}),
+            },
+            "hidden": {
+                "curve_data": ("STRING", {"default": "{\"control_points\":[{\"x\":0,\"y\":1},{\"x\":1,\"y\":0}]}"})
             }
         }
 

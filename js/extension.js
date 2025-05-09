@@ -240,7 +240,7 @@ class CustomGraphNode {
     if (!this.size) this.size = [340, 260];
 
     // --- Graph area config (proportions only) ---
-    this.graph_area_height_frac = 0.7;
+    this.graph_padding_top = 120;
     this.graph_side_margin = 25;
     this.graph_bottom_margin = 20;
 
@@ -385,13 +385,55 @@ class CustomGraphNode {
     this._updateCurveWidget();
 	}
 
-    // Now calcGraphArea uses current this.size every time it's called
-    calcGraphArea() {
-        this.graph_area_top = Math.round(this.size[1] * (1 - this.graph_area_height_frac));
-        this.graph_area_height = Math.round(this.size[1] * this.graph_area_height_frac) - this.graph_bottom_margin;
-        this.graph_area_width = this.size[0] - this.graph_side_margin * 2;
-        this.graph_area_left = this.graph_side_margin;
+calcGraphArea() {
+    // Calculate the exact position where widgets end
+    let widgets_bottom = 40; // Start with space for node title (usually ~30-40px)
+    
+    if (this.widgets && this.widgets.length) {
+        // Widgets in ComfyUI are typically about 30px tall including margins
+        // We'll go through each widget type to be more precise
+        this.widgets.forEach(w => {
+            // Different widget types have different heights
+            let widget_height = 30; // Default height
+            
+            if (w.type === "combo") widget_height = 30;
+            else if (w.type === "number") widget_height = 30;
+            else if (w.type === "string" && w.options && w.options.multiline) {
+                // Multiline text fields are taller
+                widget_height = 80; 
+            }
+            else if (w.type === "string") widget_height = 30;
+            
+            widgets_bottom += widget_height;
+        });
+        
+        // Add some extra padding for spacing between widgets
+        widgets_bottom += 10; 
     }
+    
+    // Add extra clearance to ensure no overlap with widgets
+    const extra_clearance = 2; // 2px additional space below widgets
+    this.graph_area_top = widgets_bottom + extra_clearance;
+    
+    // Calculate available space for graph
+    this.graph_area_height = this.size[1] - this.graph_area_top - this.graph_bottom_margin;
+    this.graph_area_width = this.size[0] - this.graph_side_margin * 2;
+    this.graph_area_left = this.graph_side_margin;
+    
+    // Ensure minimum graph height by resizing node if needed
+    const min_graph_height = 140; // Reasonable minimum height
+    if (this.graph_area_height < min_graph_height) {
+        // Resize the node to fit everything
+        const additional_height = min_graph_height - this.graph_area_height;
+        this.size[1] += additional_height;
+        this.graph_area_height = min_graph_height;
+        
+        // Update node size in ComfyUI
+        if (this.setSize) {
+            this.setSize(this.size);
+        }
+    }
+}
 
     _ensureValidPoints() {
         if (!Array.isArray(this.points) || this.points.length < 2) {
