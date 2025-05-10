@@ -14,11 +14,9 @@ class CustomSplineSigma:
         return {
             "required": {
                 "steps": ("INT", {"default": 20, "min": 2, "max": 4096}),
-                "start_y": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "end_y": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-            },
-            "hidden": {
-                "curve_data": ("STRING", {"default": "{\"control_points\":[{\"x\":0,\"y\":1},{\"x\":1,\"y\":0}]}"})
+                "start_y": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 20, "step": 0.01}),
+                "end_y": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 20, "step": 0.01}),
+                "curve_data": ("STRING", {"default": "", "forceInput": True}),
             }
         }
 
@@ -29,22 +27,13 @@ class CustomSplineSigma:
         # --- Parse curve_data for control_points and samples ---
         try:
             data = json.loads(curve_data) if curve_data else {}
-            points = data.get("control_points", None)
-            
-            # Use deserialized points if available and no valid points in curve_data
-            if not points and hasattr(self, 'cached_control_points'):
-                points = self.cached_control_points
-            
-            # Fallback to default if still no points
-            if not points:
-                points = [
+            points = data.get(
+                "control_points", 
+                [
                     {"x": 0.0, "y": start_y},
                     {"x": 1.0, "y": end_y}
                 ]
-                
-            # Cache these for serialization
-            self.cached_control_points = points
-            
+            )
             samples = data.get("samples", None)
         except Exception as e:
             print(f"[CustomSplineSigma] Bad input: {str(e)}")
@@ -53,7 +42,6 @@ class CustomSplineSigma:
                 {"x": 0.0, "y": start_y},
                 {"x": 1.0, "y": end_y}
             ]
-            self.cached_control_points = points
 
         # --- Use JS samples if available for pixel-perfect match ---
         if samples and isinstance(samples, list) and len(samples) > 1:
@@ -125,19 +113,6 @@ class CustomSplineSigma:
             json.dumps(out_data),
             sigmas
         )
-    
-    def onSerialize(self):
-        # This is called when the node is being saved to a workflow file
-        # We should return any extra data we want saved
-        if hasattr(self, 'cached_control_points'):
-            return {"curve_state": self.cached_control_points}
-        return {}
-
-    def onDeserialize(self, data):
-        # This is called when the node is being loaded from a workflow file
-        # We should process any extra data that was saved
-        if "curve_state" in data:
-            self.cached_control_points = data["curve_state"]
 
 NODE_CLASS_MAPPINGS = {"CustomSplineSigma": CustomSplineSigma}
 NODE_DISPLAY_NAME_MAPPINGS = {"CustomSplineSigma": "📈 Custom Graph Sigma"}
