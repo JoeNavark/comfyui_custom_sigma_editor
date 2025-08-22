@@ -1,0 +1,14 @@
+[project]
+name = "custom_sigma_editor"
+description = "Custom Graph Sigma is a ComfyUI custom node that provides an interactive spline-based curve editor for visually creating and exporting custom sigma schedules. This is especially useful for controlling the noise schedule or custom step values in diffusion models and other workflows that use a sequence of values over time or steps."
+version = "1.0.0"
+license = {file = "LICENSE"}
+
+[project.urls]
+Repository = "https://github.com/JoeNavark/comfyui_custom_sigma_editor"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "comfyui_custom_sigma_editor"
+Icon = ""
